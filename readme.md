@@ -28,7 +28,9 @@
 
 感谢 包帮忙复现的阿波罗网络。
 
-    
+LRF C++ 版本代码：
+[LFR-Benchmark_UndirWeightOvp](https://github.com/eXascaleInfolab/LFR-Benchmark_UndirWeightOvp)
+
 
     
     
