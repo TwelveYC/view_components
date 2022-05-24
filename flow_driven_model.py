@@ -12,6 +12,7 @@ from numpy.random import choice
 import numpy as np
 from random import random
 import powerlaw
+from utils import network_topology
 
 
 class FlowDrivenNetwork:
@@ -92,32 +93,68 @@ class FlowDrivenNetwork:
         self.summarize_node_weight()
         self.state += 1
 
+def histogram(data, bins):
+    density, bin_edges = np.histogram(data, bins=bins, density=True)
+    data = []
+    for i in range(bins):
+        data.append({"y1": density[i], "x": bin_edges[i]})
+    return data
 
 def basic_simulation(W):
-    N = 500
+    N = 100
     n0 = 10
     net = FlowDrivenNetwork(n0, W, 3, 1)
     t = N - n0
     for i in range(t):
         net.step()
-        print(net.graph.number_of_nodes(), net.graph.number_of_edges())
-    # deg = [i[1] for i in nx.degree(net.graph)]
-    # fit = powerlaw.Fit(deg)
-    # fit.power_law.plot_pdf(linestyle="--", label="k {:.3f} W {}".format(fit.power_law.alpha, W))
+    data = network_topology(net.graph)
+    node_attributes = nx.get_node_attributes(net.graph, "w")
+    edge_attributes = nx.get_edge_attributes(net.graph, "w")
 
-    s = list(nx.get_node_attributes(net.graph, "w").values())
-    fit = powerlaw.Fit(s)
-    fit.power_law.plot_pdf(linestyle="--", label="s {:.3f} W {}".format(fit.power_law.alpha, W))
+    pos = nx.kamada_kawai_layout(net.graph)
+    for k, v in pos.items():
+        data["nodes"][k]["x"], data["nodes"][k]["y"] = 500 * v[0], 500 * v[1]
+        data["nodes"][k]["size"] = np.log10(node_attributes[k]) * 20
+
+    for i, (k, v) in enumerate(edge_attributes.items()):
+        data["links"][i]["size"] = edge_attributes[k]
+
+    strength = list(nx.get_node_attributes(net.graph, "w").values())
+    edge_weight = list(nx.get_edge_attributes(net.graph, "w").values())
+    degree = [i[1] for i in nx.degree(net.graph)]
+    data["pk"] = histogram(degree, 10)
+    data["pw"] = histogram(edge_weight, 10)
+    data["ps"] = histogram(strength, 10)
+
+    strength_dict = nx.get_node_attributes(net.graph, "w")
+    degree_dict = {i[0]:i[1] for i in nx.degree(net.graph)}
+
+    temp = {"0": [], "1": [], "2": []}
+    for i in nx.degree(net.graph):
+        if i[1] in temp.keys():
+            temp[i[1]].append(strength_dict[i[0]])
+        else:
+            temp[i[1]] = [strength_dict[i[0]]]
+    skk = []
+    for k, v in temp.items():
+        if len(v) != 0:
+           skk.append({"x": int(k), "y1": sum(v) / len(v)})
+    skk = sorted(skk, key=lambda e: e["x"])
+    wwkk = [{"points": []}]
+    for i, j in net.graph.edges:
+        wwkk[0]["points"].append([strength[i]*strength[j], degree_dict[i]*degree_dict[j]])
+    data["skk"] = skk
+    data["wwkk"] = wwkk
+    return data
 
 
 def main():
+    pass
+
+
+def flow_drive_model_test():
     ws = [1, 3, 5, 15]
+    data = {}
     for d in ws:
-        basic_simulation(d)
-    plt.legend()
-    plt.show()
-
-
-
-if __name__ == '__main__':
-    main()
+        data[d] = basic_simulation(d)
+    return data

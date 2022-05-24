@@ -44,5 +44,8 @@ def main():
     plt.plot(x, smooth(v))
     plt.show()
 
+def er_network_model_test():
+    pass
+
 if __name__ == '__main__':
     main()

@@ -1,4 +1,3 @@
-
 """
 模型名称：构型网络
 代码：已有开源代码
@@ -16,58 +15,144 @@ Ref:Newman M E J. The structure and function of complex networks[J]. SIAM review
 """
 import networkx as nx
 import powerlaw
+from collections import Counter
 import numpy as np
 from matplotlib import pyplot as plt
-
-config_parameter = {
-    "exp_mode": "possion"
-}
+from utils import smooth, network_topology
+from random import sample
 
 
-def main():
-    if config_parameter["exp_mode"] == "power_law":
-        exp_1()
-        exp_2()
-    elif config_parameter["exp_mode"] == "possion":
-        exp_3()
-        exp_4()
-    plt.legend()
-    plt.show()
+def degree_his(graph):
+    h = graph.copy()
+    deg = nx.degree(h)
+    degree = [i[1] for i in deg]
+    c = Counter(degree)
+    values = []
+    for k, v in c.items():
+        values.append([k, v])
+    values = sorted(values, key=lambda e: e[0])
+    return values
 
-def exp_1():
-    t = 3
-    s = 31
-    seq = nx.random_powerlaw_tree_sequence(50, gamma=t, tries=50000, seed=s)
+
+def percolation(graph):
+    h = graph.copy()
+    es = h.edges
+    ns = h.nodes
+    degree = nx.degree(h)
+    sort_degree = sorted(degree, key=lambda e: e[1], reverse=True)
+
+    node_number = h.number_of_nodes()
+    edge_number = h.number_of_edges()
+    values = []
+    for i in range(1, 101):
+        hh = h.copy()
+        remove_nodes = [j[0] for j in sort_degree[0: int((i * node_number) / 100)]]
+        hh.remove_nodes_from(remove_nodes)
+        if i != 100:
+            size = len(max(list(nx.connected_components(hh)), key=len))
+        else:
+            size = 0
+        values.append(size / node_number)
+
+    return values
+
+
+def clustering(graph):
+    h = graph.copy()
+    cc = nx.clustering(h)
+    degree = nx.degree(h)
+    values = []
+    for k, v in cc.items():
+        values.append([degree[k], v])
+    return values
+
+
+def get_config_network_model(t, s):
+    # 3 101
+    # 3.5 15
+    # 3.2 184
+    seq = nx.random_powerlaw_tree_sequence(100, gamma=t, tries=500000, seed=s)
     g = nx.configuration_model(seq)
-    deg = [i[1] for i in nx.degree(g)]
-    # deg = np.array(deg) + 1
-    fit = powerlaw.Fit(deg)
-    fit.power_law.plot_pdf(color="g", linestyle="--", label="{:.3f}".format(fit.power_law.alpha))
-    v = fit.power_law.alpha
+    return g
 
-def exp_2():
-    t = 3.5
-    s = 367
-    sequence = nx.random_powerlaw_tree_sequence(50, gamma=t, tries=50000, seed=s)
-    g = nx.configuration_model(sequence)
-    deg = [i[1] for i in nx.degree(g)]
-    deg = np.array(deg) + 1
-    fit = powerlaw.Fit(deg)
-    fit.power_law.plot_pdf(color="b", linestyle="--", label="{:.3f}".format(fit.power_law.alpha))
-    v = fit.power_law.alpha
-    print(v)
 
-def exp_3():
-    seq = [3, 8, 3, 3, 3, 5, 5, 2, 5, 4, 3, 8, 2, 1, 5, 4, 3, 4, 5, 4, 5, 1, 4, 7, 5, 5, 7, 10, 4, 1, 2, 4, 1, 2, 3, 4, 4, 2, 10, 6, 2, 2, 3, 2, 6, 2, 1, 4, 6, 7]
-    g = nx.configuration_model(seq)
-    deg = [i[1] for i in nx.degree(g)]
-    plt.hist(deg, bins=50, label="4")
+def get_parameter(graph):
+    data = network_topology(graph)
+    data["degree"] = degree_his(graph)
+    data["clustering"] = clustering(graph)
+    data["percolation"] = percolation(graph)
+    return data
 
-def exp_4():
-    seq = [8, 6, 15, 9, 7, 6, 9, 13, 7, 8, 6, 7, 7, 7, 8, 5, 10, 8, 10, 11, 10, 10, 7, 9, 9, 13, 9, 8, 7, 11, 8, 8, 7, 6, 7, 7, 8, 11, 4, 9, 10, 5, 8, 5, 7, 4, 10, 6, 10, 6]
-    g = nx.configuration_model(seq)
-    deg = [i[1] for i in nx.degree(g)]
-    plt.hist(deg, bins=50, label="8")
+def to_graph(graph):
+    h = nx.Graph()
+    es = []
+    for i in graph.edges:
+        if i[2] == 0:
+            es.append([i[0], i[1]])
+    h.add_edges_from(es)
+    return h
+
+def degree_summary(*args):
+    values = []
+    max_v = []
+    for arg in args:
+        max_v.extend(arg)
+    max_v_v = max(max_v, key=lambda e:e[0])[0]
+    for i in range(1, max_v_v + 1):
+        values.append({"x": i})
+    for k, arg in enumerate(args):
+        for j in arg:
+            values[j[0]-1]["y{}".format(k + 1)] = j[1]
+    return values
+
+def cluster_summary(*args):
+    values = []
+    for arg in args:
+        values.append({"points": arg})
+    return values
+
+def percolation_summary(*args):
+    values = []
+    for i in range(1, 101):
+        temp = {"x": i}
+        for k, arg in enumerate(args):
+            temp["y{}".format(k+1)] = arg[i - 1]
+        values.append(temp)
+    return values
+
+def config_model_test():
+    data = {}
+    g3 = nx.read_gml("./data/nets/g3.gml")
+    g35 = nx.read_gml("./data/nets/g35.gml")
+    g32 = nx.read_gml("./data/nets/g32.gml")
+    data3 = get_parameter(g3)
+    data35 = get_parameter(g35)
+    data32 = get_parameter(g32)
+    pos3 = list(nx.kamada_kawai_layout(g3).values())
+    pos35 = list(nx.kamada_kawai_layout(g35).values())
+    pos32 = list(nx.kamada_kawai_layout(g32).values())
+
+
+    for k, v in enumerate(pos3):
+        data3["nodes"][k]["x"] = 500 * v[0]
+        data3["nodes"][k]["y"] = 500 * v[1]
+
+    for k, v in enumerate(pos35):
+        data35["nodes"][k]["x"] = 500 * v[0]
+        data35["nodes"][k]["y"] = 500 * v[1]
+
+    for k, v in enumerate(pos32):
+        data32["nodes"][k]["x"] = 500 * v[0]
+        data32["nodes"][k]["y"] = 500 * v[1]
+
+    data["g3"] = {"nodes": data3["nodes"], "links": data3["links"]}
+    data["g35"] = {"nodes": data35["nodes"], "links": data35["links"]}
+    data["g32"] = {"nodes": data32["nodes"], "links": data32["links"]}
+    data["degree"] = degree_summary(data3["degree"], data35["degree"], data32["degree"])
+    data["clustering"] = cluster_summary(data3["clustering"], data35["clustering"], data32["clustering"])
+    data["percolation"] = percolation_summary(data3["percolation"], data35["percolation"], data32["percolation"])
+    return data
+
 
 if __name__ == '__main__':
-    main()
+    config_model_test()

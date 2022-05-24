@@ -132,5 +132,8 @@ def main():
     plt.show()
 
 
+def weight_communities_test():
+    pass
+
 if __name__ == '__main__':
     main()

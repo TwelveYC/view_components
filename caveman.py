@@ -23,6 +23,5 @@ def main():
     print(g.number_of_nodes() / (2 * (4 + 1)))
 
 
-
-if __name__ == '__main__':
-    main()
+def caveman_test():
+    pass

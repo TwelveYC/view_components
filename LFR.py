@@ -16,6 +16,9 @@ def main():
 
     # nx.write_gml(g, "vvv.gml")
 
+def lfr_test():
+    pass
+
 
 if __name__ == '__main__':
     main()
